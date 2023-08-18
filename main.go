@@ -119,12 +119,12 @@ func validateStructuralFiles() error {
 	}
 
 	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if err == nil && libRegEx.MatchString(info.Name()) {
-			if info.IsDir() && info.Name() == "app" {
+		if err == nil && libRegEx.MatchString(path) {
+			if info.IsDir() && path == "app" {
 				appFolder = path
-			} else if !info.IsDir() && info.Name() == "index.html" {
+			} else if !info.IsDir() && path == "index.html" {
 				baseTemplate = generateBaseTemplate(path)
-			} else if !info.IsDir() && info.Name() == "app/page.goo" {
+			} else if !info.IsDir() && path == "app/page.goo" {
 				entryPage = path
 			}
 		}
