@@ -93,9 +93,7 @@ func createPageTemplate(pagePath string) (*string, error) {
 	tmpl := "{{template \"base\" .}}\n"
 	tmpl += string(file)
 
-	hasScript := regexp.MustCompile("<script>").MatchString(tmpl)
-
-	if hasScript {
+	if regexp.MustCompile("<script>").MatchString(tmpl) {
 		tmpl = regexp.MustCompile("<script>").ReplaceAllString(tmpl, "{{define \"js\"}}\n<script>")
 		tmpl = regexp.MustCompile("</script>").ReplaceAllString(tmpl, "</script>\n{{define \"content\"}}\n")
 		tmpl = regexp.MustCompile("</script>").ReplaceAllString(tmpl, "</script>\n{{end}}\n")
@@ -103,9 +101,7 @@ func createPageTemplate(pagePath string) (*string, error) {
 		tmpl = regexp.MustCompile("{{template \"base\" .}}").ReplaceAllString(tmpl, "{{template \"base\" .}}\n{{define \"content\"}}\n")
 	}
 
-	hasCSS := regexp.MustCompile("<style>").MatchString(tmpl)
-
-	if hasCSS {
+	if regexp.MustCompile("<style>").MatchString(tmpl) {
 		tmpl = regexp.MustCompile("<style>").ReplaceAllString(tmpl, "{{end}}\n<style>")
 		tmpl = regexp.MustCompile("<style>").ReplaceAllString(tmpl, "{{define \"css\"}}\n<style>")
 		tmpl = regexp.MustCompile("</style>").ReplaceAllString(tmpl, "</style>\n{{end}}\n")
