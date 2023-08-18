@@ -117,12 +117,12 @@ func createPageTemplate(pagePath string) (*string, error) {
 }
 
 func validateStructuralFiles() error {
-	libRegEx, e := regexp.Compile("(app|index.html|app/page.goo)$")
-	if e != nil {
-		log.Fatal(e)
+	libRegEx, err := regexp.Compile("(app|index.html|app/page.goo)$")
+	if err != nil {
+		return err
 	}
 
-	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err == nil && libRegEx.MatchString(info.Name()) {
 			if info.IsDir() && info.Name() == "app" {
 				appFolder = path
@@ -132,14 +132,15 @@ func validateStructuralFiles() error {
 				entryPage = path
 			}
 		}
+
 		return nil
 	})
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	if appFolder == "" || baseTemplate == "" {
-		return errors.New("no app folder or index.html file found")
+	if appFolder == "" || baseTemplate == "" || entryPage == "" {
+		return errors.New("no app folder, entry page.goo and/or index.html file found")
 	}
 
 	return nil
