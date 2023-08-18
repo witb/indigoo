@@ -1,0 +1,13 @@
+<script>
+    document.getElementById("name").innerHTML = "World";
+</script>
+
+<h1>Hello <span id="name"></span>!</h1>
+
+<style>
+    h1 {
+        color: gray;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 36px;
+    }
+</style>
