@@ -63,10 +63,12 @@ func renderRoutesFromFolderStructure(mux *chi.Mux) *chi.Mux {
 }
 
 func renderPage(w http.ResponseWriter, pagePath string) error {
-	page, err := createPageTemplate(pagePath)
+	page, components, err := createPageTemplate(pagePath)
 	if err != nil {
 		return err
 	}
+
+	log.Println(components)
 
 	name := filepath.Base(pagePath)
 	ts, err := template.New(name).Parse(*page)
@@ -84,14 +86,21 @@ func renderPage(w http.ResponseWriter, pagePath string) error {
 	return nil
 }
 
-func createPageTemplate(pagePath string) (*string, error) {
+func createPageTemplate(pagePath string) (*string, *[]string, error) {
 	file, err := os.ReadFile(pagePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	componentPaths := []string{}
+	fileString := string(file)
+	fileString = regexp.MustCompile("import\\s+\\(([^)]+)\\)").ReplaceAllStringFunc(fileString, func(s string) string {
+		componentPaths = append(componentPaths, regexp.MustCompile("\"(.+)\"").FindStringSubmatch(s)[1])
+		return ""
+	})
+
 	tmpl := "{{template \"base\" .}}\n"
-	tmpl += string(file)
+	tmpl += fileString
 
 	if regexp.MustCompile("<script>").MatchString(tmpl) {
 		tmpl = regexp.MustCompile("<script>").ReplaceAllString(tmpl, "{{define \"js\"}}\n<script>")
@@ -109,37 +118,7 @@ func createPageTemplate(pagePath string) (*string, error) {
 		tmpl += "{{end}}"
 	}
 
-	return &tmpl, nil
-}
-
-func validateStructuralFiles() error {
-	libRegEx, err := regexp.Compile("(app|index.html|app/page.goo)$")
-	if err != nil {
-		return err
-	}
-
-	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if err == nil && libRegEx.MatchString(info.Name()) {
-			if info.IsDir() && info.Name() == "app" {
-				appFolder = path
-			} else if !info.IsDir() && info.Name() == "index.html" {
-				baseTemplate = generateBaseTemplate(path)
-			} else if !info.IsDir() && info.Name() == "app/page.goo" {
-				entryPage = path
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	if appFolder == "" || baseTemplate == "" || entryPage == "" {
-		return errors.New("no app folder, entry page.goo and/or index.html file found")
-	}
-
-	return nil
+	return &tmpl, &componentPaths, nil
 }
 
 func generateBaseTemplate(path string) string {
@@ -157,4 +136,34 @@ func generateBaseTemplate(path string) string {
 	tmpl = regexp.MustCompile("</body>").ReplaceAllString(tmpl, "{{block \"js\" .}}\n{{end}}\n</html>")
 
 	return tmpl
+}
+
+func validateStructuralFiles() error {
+	libRegEx, err := regexp.Compile("(app|index.html|app/page.goo)$")
+	if err != nil {
+		return err
+	}
+
+	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if err == nil && libRegEx.MatchString(path) {
+			if info.IsDir() && path == "app" {
+				appFolder = path
+			} else if !info.IsDir() && path == "index.html" {
+				baseTemplate = generateBaseTemplate(path)
+			} else if !info.IsDir() && path == "app/page.goo" {
+				entryPage = path
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if appFolder == "" || baseTemplate == "" || entryPage == "" {
+		return errors.New("no app folder, entry page.goo and/or index.html file found")
+	}
+
+	return nil
 }
