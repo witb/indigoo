@@ -1,0 +1,17 @@
+<script>
+    import Nested from './nested.goo';
+</script>
+
+<component>
+    <p>This Style</p>
+
+    <Nested />
+</component>
+
+<style>
+    p {
+        color: gray;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 36px;
+    }
+</style>
