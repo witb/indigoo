@@ -19,9 +19,11 @@ type Page struct {
 	Components [][]interface{}
 }
 
+var Cache = true
 var appFolder string
 var baseTemplate string
 var entryPage string
+var templateCache = map[string]*template.Template{}
 
 func init() {
 	err := validateStructuralFiles()
@@ -71,22 +73,28 @@ func renderRoutesFromFolderStructure(mux *chi.Mux) *chi.Mux {
 }
 
 func renderPage(w http.ResponseWriter, pagePath string) error {
-	page, err := createPageTemplate(pagePath)
-	if err != nil {
-		return err
-	}
-
-	log.Println(page.Template)
-
+	ts, ok := templateCache[pagePath]
 	name := filepath.Base(pagePath)
-	ts, err := template.New(name).Parse(page.Template)
-	if err != nil {
-		return err
+
+	if !ok {
+		page, err := createPageTemplate(pagePath)
+		if err != nil {
+			return err
+		}
+
+		ts, err = template.New(name).Parse(page.Template)
+		if err != nil {
+			return err
+		}
+
+		ts, err = ts.Parse(baseTemplate)
 	}
 
-	ts, err = ts.Parse(baseTemplate)
+	if Cache {
+		templateCache[pagePath] = ts
+	}
 
-	err = ts.ExecuteTemplate(w, name, nil)
+	err := ts.ExecuteTemplate(w, name, nil)
 	if err != nil {
 		return err
 	}
@@ -216,8 +224,6 @@ func parseComponentTemplate(componentPath string, componentName string) (*string
 	} else {
 		tmpl += "{{end}}"
 	}
-
-	log.Println(tmpl)
 
 	return &tmpl, nil
 }
