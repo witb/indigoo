@@ -3,7 +3,7 @@
 </script>
 
 <component>
-    <p>Dont affect this <span class="demo"></span>...</p>
+    <p>Dont affect this <span id="demo"></span>...</p>
 </component>
 
 <style>

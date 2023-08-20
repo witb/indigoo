@@ -88,6 +88,11 @@ func renderPage(w http.ResponseWriter, pagePath string) error {
 			return err
 		}
 
+		page, err = handleComponentsTemplateChange(page)
+		if err != nil {
+			return err
+		}
+
 		ts, err = template.New(name).Parse("{{template \"base\" .}}\n" + page.Template)
 		if err != nil {
 			return err
@@ -100,7 +105,7 @@ func renderPage(w http.ResponseWriter, pagePath string) error {
 			}
 		}
 
-		ts, err = ts.Parse(generateBaseTemplate(baseTemplate, page.CustomClass))
+		ts, err = ts.Parse(generateBaseTemplate(baseTemplate, page))
 	}
 
 	if Cache {
@@ -211,6 +216,27 @@ func handleComponents(tmpl string, path string) (map[string]*component, error) {
 	return cps, nil
 }
 
+func handleComponentsTemplateChange(page *component) (*component, error) {
+	for _, component := range page.Components {
+		componentTagPattern := regexp.MustCompile(`<` + component.Name + `\s*(.*?)<\/` + component.Name + `>|<` + component.Name + `\s*(.*?)\/>`)
+
+		page.Template = componentTagPattern.ReplaceAllStringFunc(page.Template, func(match string) string {
+			matches := componentTagPattern.FindStringSubmatch(match)
+
+			for _, match := range matches {
+				templateRef := "{{template \"content-" + component.CustomClass + "\" .}}"
+				return strings.Replace(match, match, templateRef, 1)
+			}
+
+			return match
+		})
+
+		page.Template += component.Template
+	}
+
+	return page, nil
+}
+
 func parseTemplate(cmpt component) (string, error) {
 	var tmpl string
 
@@ -240,79 +266,7 @@ func readFile(path string) (*string, error) {
 	return &tmpl, nil
 }
 
-//func createPageTemplate(pagePath string) (*Page, error) {
-//	page := Page{
-//		Template:   "{{template \"base\" .}}\n",
-//		Components: [][]interface{}{},
-//	}
-//
-//	parsedPage, err := parsePageTemplate(pagePath)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	page.Template += *parsedPage
-//
-//	componentPathPattern := regexp.MustCompile(`^\s*import\s+.*from\s+'([^']+)';\s*$`)
-//
-//	fileLines := strings.Split(page.Template, "\n")
-//	var newTemplateLines []string
-//	for _, line := range fileLines {
-//		match := componentPathPattern.FindStringSubmatch(line)
-//
-//		if len(match) > 0 {
-//			componentNamePattern := regexp.MustCompile(`(\s|{|,)[A-Z]+[^.,\s,}]+`)
-//
-//			componentMatches := componentNamePattern.FindAllString(line, -1)
-//
-//			if len(componentMatches) > 0 {
-//				var componentNames []string
-//				for _, componentMatch := range componentMatches {
-//					componentNames = append(componentNames, componentMatch[1:])
-//				}
-//
-//				componentPath := filepath.Join(filepath.Dir(pagePath), match[1])
-//
-//				page.Components = append(page.Components, []interface{}{componentPath, componentNames})
-//			}
-//		} else {
-//			newTemplateLines = append(newTemplateLines, line)
-//		}
-//	}
-//
-//	page.Template = strings.Join(newTemplateLines, "\n")
-//
-//	for _, component := range page.Components {
-//		componentPath := component[0].(string)
-//		componentNames := component[1].([]string)
-//
-//		for _, componentName := range componentNames {
-//			componentTemplate, err := parseComponentTemplate(componentPath, componentName)
-//			if err != nil {
-//				return nil, err
-//			}
-//
-//			componentTagPattern := regexp.MustCompile(`<` + componentName + `\s*(.*?)<\/` + componentName + `>|<` + componentName + `\s*(.*?)\/>`)
-//
-//			page.Template = componentTagPattern.ReplaceAllStringFunc(page.Template, func(match string) string {
-//				matches := componentTagPattern.FindStringSubmatch(match)
-//
-//				for _, match := range matches {
-//					templateRef := "{{template \"components/" + componentName + "\" .}}"
-//					return strings.Replace(match, match, templateRef, 1)
-//				}
-//
-//				return match
-//			})
-//
-//			page.Template += *componentTemplate
-//		}
-//	}
-//
-//	return &page, nil
-//}
-
-func generateBaseTemplate(path string, customClass string) string {
+func generateBaseTemplate(path string, page *component) string {
 	file, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
@@ -322,9 +276,14 @@ func generateBaseTemplate(path string, customClass string) string {
 	tmpl += string(file)
 	tmpl += "{{end}}\n"
 
-	tmpl = regexp.MustCompile("</head>").ReplaceAllString(tmpl, fmt.Sprintf("{{block \"css-%s\" .}}\n{{end}}\n</head>", customClass))
-	tmpl = regexp.MustCompile("<body>").ReplaceAllString(tmpl, fmt.Sprintf("<body>\n{{block \"content-%s\" .}}\n{{end}}\n", customClass))
-	tmpl = regexp.MustCompile("</body>").ReplaceAllString(tmpl, fmt.Sprintf("{{block \"js-%s\" .}}\n{{end}}\n</body>", customClass))
+	tmpl = regexp.MustCompile("</head>").ReplaceAllString(tmpl, fmt.Sprintf("{{block \"css-%s\" .}}\n{{end}}\n</head>", page.CustomClass))
+	tmpl = regexp.MustCompile("<body>").ReplaceAllString(tmpl, fmt.Sprintf("<body>\n{{block \"content-%s\" .}}\n{{end}}\n", page.CustomClass))
+	tmpl = regexp.MustCompile("</body>").ReplaceAllString(tmpl, fmt.Sprintf("{{block \"js-%s\" .}}\n{{end}}\n</body>", page.CustomClass))
+
+	for _, component := range page.Components {
+		tmpl = regexp.MustCompile("</head>").ReplaceAllString(tmpl, fmt.Sprintf("{{block \"css-%s\" .}}\n{{end}}\n</head>", component.CustomClass))
+		tmpl = regexp.MustCompile("</body>").ReplaceAllString(tmpl, fmt.Sprintf("{{block \"js-%s\" .}}\n{{end}}\n</body>", component.CustomClass))
+	}
 
 	return tmpl
 }
