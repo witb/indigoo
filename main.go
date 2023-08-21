@@ -13,23 +13,12 @@ import (
 	"strings"
 )
 
-type component struct {
-	Name        string
-	Path        string
-	Template    string
-	Styles      *string
-	Script      *string
-	Content     *string
-	CustomClass string
-	Raw         *string
-	Components  map[string]*component
-}
-
 var Cache = true
 var appFolder string
 var baseTemplate string
 var entryPage string
 var templateCache = map[string]*template.Template{}
+var componentImportPattern = regexp.MustCompile(`import\s+\w+\s+from\s+['"]([^'"]+)['"]`)
 
 func init() {
 	err := validateStructuralFiles()
@@ -179,8 +168,6 @@ func getHTMLCode(tmpl string) (*string, error) {
 }
 
 func handleComponents(tmpl string, path string) (map[string]*component, error) {
-	componentImportPattern := regexp.MustCompile(`^\s*import\s+.*from\s+'([^']+)';\s*$`)
-
 	cps := map[string]*component{}
 
 	fileLines := strings.Split(tmpl, "\n")
@@ -217,19 +204,29 @@ func handleComponents(tmpl string, path string) (map[string]*component, error) {
 }
 
 func handleComponentsTemplateChange(page *component) (*component, error) {
-	for _, component := range page.Components {
-		componentTagPattern := regexp.MustCompile(`<` + component.Name + `\s*(.*?)<\/` + component.Name + `>|<` + component.Name + `\s*(.*?)\/>`)
-
-		page.Template = componentTagPattern.ReplaceAllStringFunc(page.Template, func(match string) string {
-			matches := componentTagPattern.FindStringSubmatch(match)
+	handleTemplateReplacement := func(cmpt *component, componentClass string, tag *regexp.Regexp) string {
+		return tag.ReplaceAllStringFunc(cmpt.Template, func(match string) string {
+			matches := tag.FindStringSubmatch(match)
 
 			for _, match := range matches {
-				templateRef := "{{template \"content-" + component.CustomClass + "\" .}}"
+				templateRef := "{{template \"content-" + componentClass + "\" .}}"
 				return strings.Replace(match, match, templateRef, 1)
 			}
 
 			return match
 		})
+	}
+
+	for _, component := range page.Components {
+		componentTagPattern := regexp.MustCompile(`<` + component.Name + `\s*(.*?)<\/` + component.Name + `>|<` + component.Name + `\s*(.*?)\/>`)
+
+		page.Template = handleTemplateReplacement(page, component.CustomClass, componentTagPattern)
+
+		for _, cmptToReplace := range page.Components {
+			if cmptToReplace.CustomClass != component.CustomClass {
+				cmptToReplace.Template = handleTemplateReplacement(cmptToReplace, component.CustomClass, componentTagPattern)
+			}
+		}
 
 		page.Template += component.Template
 	}
@@ -241,7 +238,7 @@ func parseTemplate(cmpt component) (string, error) {
 	var tmpl string
 
 	if cmpt.Script != nil {
-		tmpl += "{{define \"js-" + cmpt.CustomClass + "\"}}\n<script>\n" + *cmpt.Script + "\n</script>\n{{end}}\n"
+		tmpl += "{{define \"js-" + cmpt.CustomClass + "\"}}\n<script>\n" + *cmpt.RemoveImports() + "\n</script>\n{{end}}\n"
 	}
 
 	if cmpt.Content != nil {
