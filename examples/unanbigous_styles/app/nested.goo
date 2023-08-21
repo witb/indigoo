@@ -1,0 +1,13 @@
+<script>
+    document.getElementById("demo").innerHTML = "component";
+</script>
+
+<component>
+    <p>Dont affect this <span id="demo"></span>...</p>
+</component>
+
+<style>
+p {
+    color: red;
+}
+</style>
