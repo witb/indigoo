@@ -1,13 +1,17 @@
 <script>
+    import Nesteded from '../components/nesteded.goo';
+
     document.getElementById("demo").innerHTML = "component";
 </script>
 
 <component>
     <p>Dont affect this <span id="demo"></span>...</p>
+
+    <Nesteded />
 </component>
 
 <style>
-p {
-    color: red;
-}
+    p {
+        color: blue;
+    }
 </style>

@@ -1,9 +1,12 @@
 <script>
     import Nested from './nested.goo';
+    import Nesteded from "../components/nesteded.goo";
 </script>
 
 <component>
     <p>This Style</p>
+
+    <Nesteded />
 
     <Nested />
 </component>

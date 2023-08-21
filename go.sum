@@ -2,3 +2,5 @@ github.com/go-chi/chi/v5 v5.0.10 h1:rLz5avzKpjqxrYwXNfmjkrYYXOyLJd37pz53UFHC6vk=
 github.com/go-chi/chi/v5 v5.0.10/go.mod h1:DslCQbL2OYiznFReuXYUmQ2hGd1aDpCnlMNITLSKoi8=
 github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 h1:iQTw/8FWTuc7uiaSepXwyf3o52HaUYcV+Tu66S3F5GA=
 github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0/go.mod h1:1NbS8ALrpOvjt0rHPNLyCIeMtbizbir8U//inJ+zuB8=
+github.com/napsy/go-css v0.0.0-20230611142900-9dd118f3874c h1:La4rUnvsKPtQ468QEIAprCeAFdIRigErRuws3EhOkNw=
+github.com/napsy/go-css v0.0.0-20230611142900-9dd118f3874c/go.mod h1:HqZYcKcNnv50fgOTdGUn9YbJa2qC9oJ3kLnyrwwVzUI=

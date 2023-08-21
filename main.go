@@ -10,26 +10,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
-
-type component struct {
-	Name        string
-	Path        string
-	Template    string
-	Styles      *string
-	Script      *string
-	Content     *string
-	CustomClass string
-	Raw         *string
-	Components  map[string]*component
-}
 
 var Cache = true
 var appFolder string
 var baseTemplate string
 var entryPage string
 var templateCache = map[string]*template.Template{}
+var componentImportPattern = regexp.MustCompile(`import\s+\w+\s+from\s+['"]([^'"]+)['"]`)
 
 func init() {
 	err := validateStructuralFiles()
@@ -83,15 +71,12 @@ func renderPage(w http.ResponseWriter, pagePath string) error {
 	name := filepath.Base(pagePath)
 
 	if !ok {
-		page, err := createComponentTemplate(pagePath, name)
+		page, err := new(component).New(pagePath, name)
 		if err != nil {
 			return err
 		}
 
-		page, err = handleComponentsTemplateChange(page)
-		if err != nil {
-			return err
-		}
+		page.handleComponentsTemplateChange()
 
 		ts, err = template.New(name).Parse("{{template \"base\" .}}\n" + page.Template)
 		if err != nil {
@@ -118,141 +103,6 @@ func renderPage(w http.ResponseWriter, pagePath string) error {
 	}
 
 	return nil
-}
-
-func createComponentTemplate(path string, name string) (*component, error) {
-	var err error
-
-	pg := component{}
-	pg.Raw, err = readFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	pg.Name = name
-	pg.Path = path
-	pg.CustomClass = "indigoo" + generateCustomString(8)
-
-	pg.Script, err = getJavaScriptCode(*pg.Raw)
-	if err != nil {
-		return nil, err
-	}
-
-	pg.Styles, err = getCSSCode(*pg.Raw)
-	if err != nil {
-		return nil, err
-	}
-
-	pg.Content, err = getHTMLCode(*pg.Raw)
-	if err != nil {
-		return nil, err
-	}
-
-	pg.Components, err = handleComponents(*pg.Script, path)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, component := range pg.Components {
-		for _, subComponent := range component.Components {
-			pg.Components[subComponent.Path] = subComponent
-		}
-	}
-
-	pg.Template, err = parseTemplate(pg)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pg, nil
-}
-
-func getHTMLCode(tmpl string) (*string, error) {
-	result, err := getStringBetween(tmpl, "<component>", "</component>")
-	if err != nil {
-		return nil, err
-	}
-
-	result = strings.TrimSpace(result)
-
-	return &result, nil
-}
-
-func handleComponents(tmpl string, path string) (map[string]*component, error) {
-	componentImportPattern := regexp.MustCompile(`^\s*import\s+.*from\s+'([^']+)';\s*$`)
-
-	cps := map[string]*component{}
-
-	fileLines := strings.Split(tmpl, "\n")
-	var newTemplateLines []string
-	for _, line := range fileLines {
-		match := componentImportPattern.FindStringSubmatch(line)
-
-		if len(match) > 0 {
-			componentNamePattern := regexp.MustCompile(`(\s|{|,)[A-Z]+[^.,\s,}]+`)
-
-			componentMatches := componentNamePattern.FindAllString(line, -1)
-
-			if len(componentMatches) > 0 {
-				var componentNames []string
-				for _, componentMatch := range componentMatches {
-					componentNames = append(componentNames, componentMatch[1:])
-				}
-
-				componentPath := filepath.Join(filepath.Dir(path), match[1])
-
-				componentData, err := createComponentTemplate(componentPath, componentNames[0])
-				if err != nil {
-					return nil, err
-				}
-
-				cps[componentPath] = componentData
-			}
-		} else {
-			newTemplateLines = append(newTemplateLines, line)
-		}
-	}
-
-	return cps, nil
-}
-
-func handleComponentsTemplateChange(page *component) (*component, error) {
-	for _, component := range page.Components {
-		componentTagPattern := regexp.MustCompile(`<` + component.Name + `\s*(.*?)<\/` + component.Name + `>|<` + component.Name + `\s*(.*?)\/>`)
-
-		page.Template = componentTagPattern.ReplaceAllStringFunc(page.Template, func(match string) string {
-			matches := componentTagPattern.FindStringSubmatch(match)
-
-			for _, match := range matches {
-				templateRef := "{{template \"content-" + component.CustomClass + "\" .}}"
-				return strings.Replace(match, match, templateRef, 1)
-			}
-
-			return match
-		})
-
-		page.Template += component.Template
-	}
-
-	return page, nil
-}
-
-func parseTemplate(cmpt component) (string, error) {
-	var tmpl string
-
-	if cmpt.Script != nil {
-		tmpl += "{{define \"js-" + cmpt.CustomClass + "\"}}\n<script>\n" + *cmpt.Script + "\n</script>\n{{end}}\n"
-	}
-
-	if cmpt.Content != nil {
-		tmpl += "{{define \"content-" + cmpt.CustomClass + "\"}}\n" + *cmpt.Content + "\n{{end}}\n"
-	}
-
-	if cmpt.Styles != nil {
-		tmpl += "{{define \"css-" + cmpt.CustomClass + "\"}}\n<style>\n" + *cmpt.Styles + "\n</style>\n{{end}}\n"
-	}
-
-	return tmpl, nil
 }
 
 func readFile(path string) (*string, error) {

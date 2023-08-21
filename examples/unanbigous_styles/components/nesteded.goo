@@ -1,0 +1,21 @@
+<script>
+    document.getElementById("demo2").innerHTML = "component 2";
+</script>
+
+<component>
+    <p>This is nesteeeeeeded <span id="demo2"></span>...</p>
+
+    <p class="test-with-class">test with class</p>
+
+    <div>test selection</div>
+</component>
+
+<style>
+    p {
+        color: red;
+    }
+
+    p.test-with-class {
+        color: green;
+    }
+</style>
