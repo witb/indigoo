@@ -3,7 +3,7 @@
 </script>
 
 <component>
-    <p>And don't the nested component inside the nested component...</p>
+    <p>And don't affect the nested component inside the nested component...</p>
 </component>
 
 <style>
