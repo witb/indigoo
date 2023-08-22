@@ -162,6 +162,7 @@ func (cmpt *component) handleCssOnRootDomElements() error {
 	pattern := fmt.Sprintf(`<([a-z]{1,10})[^>]*>([\s\S]*?)<\/([a-z]{1,10})>|<([a-z]{1,10})(?:\s[^>]*)?\s*\/>`)
 
 	cmpt.Content = regexp.MustCompile(pattern).ReplaceAllStringFunc(cmpt.Content, func(match string) string {
+		// TODO: make it work with components that already have class
 		openingTag := strings.Index(match, "<")
 		closingTag := strings.Index(match, ">")
 

@@ -35,12 +35,6 @@ func RenderApplication() *chi.Mux {
 }
 
 func RenderApplicationWithMux(mux *chi.Mux) *chi.Mux {
-	renderRoutesFromFolderStructure(mux)
-
-	return mux
-}
-
-func renderRoutesFromFolderStructure(mux *chi.Mux) *chi.Mux {
 	err := filepath.Walk(appFolder, func(path string, info os.FileInfo, err error) error {
 		if err == nil && !info.IsDir() && info.Name() == "page.goo" {
 			relativePath := path[len(appFolder)+1:]
@@ -103,17 +97,6 @@ func renderPage(w http.ResponseWriter, pagePath string) error {
 	}
 
 	return nil
-}
-
-func readFile(path string) (*string, error) {
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	tmpl := string(file)
-
-	return &tmpl, nil
 }
 
 func generateBaseTemplate(path string, page *component) string {

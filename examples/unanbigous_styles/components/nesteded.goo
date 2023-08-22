@@ -3,19 +3,11 @@
 </script>
 
 <component>
-    <p>This is nesteeeeeeded <span id="demo2"></span>...</p>
-
-    <p class="test-with-class">test with class</p>
-
-    <div>test selection</div>
+    <p>And don't the nested component inside the nested component...</p>
 </component>
 
 <style>
     p {
-        color: red;
-    }
-
-    p.test-with-class {
         color: green;
     }
 </style>
