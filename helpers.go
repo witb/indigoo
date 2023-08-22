@@ -4,9 +4,21 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"regexp"
 	"time"
 )
+
+func readFile(path string) (*string, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	tmpl := string(file)
+
+	return &tmpl, nil
+}
 
 func getStringBetween(s, start, end string) (string, error) {
 	re := regexp.MustCompile(fmt.Sprintf(`(?s)%s(.*?)%s`, regexp.QuoteMeta(start), regexp.QuoteMeta(end)))
