@@ -1,0 +1,13 @@
+<script>
+    document.getElementById("demo2").innerHTML = "component 2";
+</script>
+
+<component>
+    <p>And don't affect the nested component inside the nested component...</p>
+</component>
+
+<style>
+    p {
+        color: green;
+    }
+</style>
