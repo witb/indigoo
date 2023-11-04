@@ -2,6 +2,7 @@ package indigoo
 
 import (
 	"fmt"
+	"github.com/witb/indigoo/utils"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 type component struct {
 	Name             string
+	WebComponentName string
 	Path             string
 	Template         string
 	Styles           string
@@ -38,6 +40,9 @@ func (cmpt *component) handleComponentGeneration(path string, name string) error
 	}
 
 	cmpt.Name = name
+	cmpt.WebComponentName = strings.ToLower(path)
+	cmpt.WebComponentName = strings.TrimRight(cmpt.WebComponentName, ".goo")
+	cmpt.WebComponentName = "goo-" + strings.ReplaceAll(strings.ReplaceAll(cmpt.WebComponentName, "app/", ""), "/", "-")
 	cmpt.Path = path
 	cmpt.CustomClass = "indigoo-" + generateCustomString(8)
 
@@ -122,8 +127,6 @@ func (cmpt *component) handleTemplateSectors() error {
 
 	cmpt.Content = strings.TrimSpace(result)
 
-	cmpt.handleCssOnRootDomElements()
-
 	return nil
 }
 
@@ -131,62 +134,22 @@ func (cmpt *component) parseTemplate() {
 	var tmpl string
 
 	if cmpt.Script != "" {
-		tmpl += "{{define \"js-" + cmpt.CustomClass + "\"}}\n<script>\n" + cmpt.RemoveImports() + "\n</script>\n{{end}}\n"
+		tmpl += "{{define \"js-" + cmpt.CustomClass + "\"}}\n<script>\n" + cmpt.handleJavascript() + "\n</script>\n{{end}}\n"
 	}
 
 	if cmpt.Content != "" {
-		tmpl += "{{define \"content-" + cmpt.CustomClass + "\"}}\n" + cmpt.Content + "\n{{end}}\n"
-	}
+		openWebComponent := ""
+		closeWebComponent := ""
 
-	if cmpt.Styles != "" {
-		tmpl += "{{define \"css-" + cmpt.CustomClass + "\"}}\n<style>\n" + cmpt.Styles + "\n</style>\n{{end}}\n"
+		if cmpt.Script != "" {
+			openWebComponent = "<" + cmpt.WebComponentName + ">\n"
+			closeWebComponent = "</" + cmpt.WebComponentName + ">\n"
+		}
+
+		tmpl += fmt.Sprintf("{{define \"content-%s\"}}\n%s%s\n%s\n{{end}}\n", cmpt.CustomClass, openWebComponent, strings.TrimSpace(cmpt.Content), closeWebComponent)
 	}
 
 	cmpt.Template = tmpl
-}
-
-func (cmpt *component) handleCssOnRootDomElements() error {
-	hasCssSelectorWithTag := func(tag string, class string) bool {
-		selectorPattern := fmt.Sprintf(`(^|\s)%s\s`, tag)
-		re := regexp.MustCompile(selectorPattern)
-
-		hasMatch := re.MatchString(cmpt.Styles)
-
-		cmpt.Styles = re.ReplaceAllStringFunc(cmpt.Styles, func(match string) string {
-			return strings.TrimSpace(match) + "." + class
-		})
-
-		return hasMatch
-	}
-
-	pattern := fmt.Sprintf(`<([a-z]{1,10})[^>]*>([\s\S]*?)<\/([a-z]{1,10})>|<([a-z]{1,10})(?:\s[^>]*)?\s*\/>`)
-
-	cmpt.Content = regexp.MustCompile(pattern).ReplaceAllStringFunc(cmpt.Content, func(match string) string {
-		// TODO: make it work with components that already have class
-		openingTag := strings.Index(match, "<")
-		closingTag := strings.Index(match, ">")
-
-		if openingTag != -1 || closingTag != -1 {
-			firstTag := match[openingTag : closingTag+1]
-
-			re := regexp.MustCompile(`<([a-zA-Z0-9]+)[\s/>]`)
-			tagMatch := re.FindStringSubmatch(firstTag)
-			hasTag := hasCssSelectorWithTag(tagMatch[1], cmpt.CustomClass)
-
-			if hasTag {
-				classPattern := "class=\""
-				if strings.Contains(firstTag, classPattern) {
-					match = strings.Replace(firstTag, classPattern, fmt.Sprintf(`class="%s `, cmpt.CustomClass), 1) + match[closingTag+1:]
-				} else {
-					match = strings.Replace(firstTag, ">", fmt.Sprintf(` class="%s">`, cmpt.CustomClass), 1) + match[closingTag+1:]
-				}
-			}
-		}
-
-		return match
-	})
-
-	return nil
 }
 
 func (cmpt *component) handleComponentsTemplateChange() {
@@ -218,9 +181,20 @@ func (cmpt *component) handleComponentsTemplateChange() {
 	}
 }
 
-func (cmpt *component) RemoveImports() string {
+func (cmpt *component) handleJavascript() string {
 	var cleanedLines []string
 	lines := strings.Split(cmpt.Script, "\n")
+	componentName := utils.ToCamel(cmpt.WebComponentName)
+	startWebComponent := fmt.Sprintf("class %s extends HTMLElement {\nstatic observedAttributes = [\"name\"];\n\nconstructor() {\nsuper();\n\n", componentName)
+	attachCSS := ""
+
+	if cmpt.Styles != "" {
+		//attachCSS = "\nconnectedCallback() {\nconst shadow = this.attachShadow({ mode: \"open\" });\n\nconst style = document.createElement(\"style\");\n\n"
+		//attachCSS += "console.log(this.innerHtml);"
+		//attachCSS += fmt.Sprintf("style.textContent = `%s`;\n\nshadow.appendChild(style);\n}", cmpt.Styles)
+	}
+
+	endWebComponent := fmt.Sprintf("\n}%s\n}\n\ncustomElements.define(\"%s\", %s);", attachCSS, cmpt.WebComponentName, componentName)
 
 	for _, line := range lines {
 		if componentImportPattern.MatchString(strings.TrimSpace(line)) {
@@ -230,7 +204,7 @@ func (cmpt *component) RemoveImports() string {
 		}
 	}
 
-	cleanedScript := strings.Join(cleanedLines, "\n")
+	cleanedScript := startWebComponent + strings.TrimSpace(strings.Join(cleanedLines, "\n")) + endWebComponent
 
 	return cleanedScript
 }
