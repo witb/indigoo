@@ -1,0 +1,17 @@
+<script>
+    import Test from "./test.goo";
+
+    this.querySelector("span#value").innerHTML = String(Math.random());
+</script>
+
+<component>
+    <Test/>
+
+    <p>Other JavaScripts don't affect this random number: <span id="value"></span></p>
+</component>
+
+<style>
+    p {
+        color: blue;
+    }
+</style>
